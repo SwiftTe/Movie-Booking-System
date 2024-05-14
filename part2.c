@@ -56,7 +56,6 @@ int main() {
     return 0;
 }
 
-
 // Function to display the menu
 void displayMenu() {
     printf("\n              Simple Movie Booking System\n");
