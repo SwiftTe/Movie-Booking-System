@@ -61,13 +61,13 @@ void displayMenu() {
     printf("\n              Simple Movie Booking System\n");
     printf(" ==================================================================\n");
     printf("||             Menu:                                              ||\n");
-    printf("||             1- Edit ticket price (admin)                      ||\n");
-    printf("||             2- View booked tickets (admin)                    ||\n");
-    printf("||             3- Show movie and time                            ||\n");
-    printf("||             4- Choose seat                                    ||\n");
-    printf("||             5- Purchase ticket                                ||\n");
-    printf("||             6- Cancel the seat                                ||\n");
-    printf("||             7- Exit system                                    ||\n");
+    printf("||             1- Edit ticket price (admin)                       ||\n");
+    printf("||             2- View booked tickets (admin)                     ||\n");
+    printf("||             3- Show movie and time                             ||\n");
+    printf("||             4- Choose seat                                     ||\n");
+    printf("||             5- Purchase ticket                                 ||\n");
+    printf("||             6- Cancel the seat                                 ||\n");
+    printf("||             7- Exit system                                     ||\n");
     printf("||================================================================||\n");
 }
 
