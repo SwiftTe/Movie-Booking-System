@@ -26,11 +26,11 @@ typedef struct {
 } User;
 
 void displayMenu();
-void viewBookedTickets(Movie movies[], int movieCount);
+void viewBookedTickets(Movie movies[], User users[], int userCount, int movieCount);
 void showMovies(Movie movies[], int movieCount);
 void chooseSeat(Movie movies[], User *user);
-void purchaseTicket(Movie movies[], User *user, int movieCount);
-void cancelSeat(Movie movies[], User *user);
+void purchaseTicket(Movie movies[], User users[], int *userCount, int movieCount);
+void cancelSeat(Movie movies[], User users[], int *userCount);
 void exitSystem();
 void userDetails(User *user);
 void adminSection(Movie movies[], int movieCount);
@@ -47,9 +47,8 @@ Movie movies[MAX_MOVIES] = {
 
 int main() {
     int choice;
-    User currentUser;
-    currentUser.movieIndex = -1;
-    currentUser.ticketCount = 0;
+    User users[100];
+    int userCount = 0;
 
     do {
         displayMenu();
@@ -65,23 +64,19 @@ int main() {
                 }
                 break;
             case 2:
-                viewBookedTickets(movies, MAX_MOVIES);
+                viewBookedTickets(movies, users, userCount, MAX_MOVIES);
                 break;
             case 3:
                 showMovies(movies, MAX_MOVIES);
                 break;
             case 4:
-                if (currentUser.movieIndex == -1) {
-                    printf("You must purchase a ticket first.\n");
-                } else {
-                    chooseSeat(movies, &currentUser);
-                }
+                printf("You must purchase a ticket first.\n");
                 break;
             case 5:
-                purchaseTicket(movies, &currentUser, MAX_MOVIES);
+                purchaseTicket(movies, users, &userCount, MAX_MOVIES);
                 break;
             case 6:
-                cancelSeat(movies, &currentUser);
+                cancelSeat(movies, users, &userCount);
                 break;
             case 7:
                 exitSystem();
@@ -126,58 +121,75 @@ void adminSection(Movie movies[], int movieCount) {
     int choice, movieIndex;
     char newName[MAX_NAME_LENGTH], newTime[20];
     float newPrice;
+    bool logout = false;
 
-    printf("Admin Section:\n");
-    printf("1. Change movie name\n");
-    printf("2. Change movie time\n");
-    printf("3. Change movie price\n");
-    printf("Enter your choice (1-3): ");
-    scanf("%d", &choice);
+    while (!logout) {
+        printf(" ==================================================================\n");
+        printf("||                     Admin Section                              ||\n");
+        printf("|| 1. Change movie name                                           ||\n");
+        printf("|| 2. Change movie time                                           ||\n");
+        printf("|| 3. Change movie price                                          ||\n");
+        printf("|| 4. Log out                                                     ||\n");
+        printf("||================================================================||\n");
+        printf("Enter your choice (1-4): ");
+        scanf("%d", &choice);
 
-    printf("Select Movie (1-%d): ", movieCount);
-    scanf("%d", &movieIndex);
-    movieIndex--;
+        if (choice == 4) {
+            logout = true;
+            continue;
+        }
 
-    if (movieIndex < 0 || movieIndex >= movieCount) {
-        printf("Invalid movie choice.\n");
-        return;
-    }
+        printf("Select Movie (1-%d): ", movieCount);
+        scanf("%d", &movieIndex);
+        movieIndex--;
 
-    switch (choice) {
-        case 1:
-            printf("Enter new movie name: ");
-            scanf(" %[^\n]s", newName);
-            strcpy(movies[movieIndex].name, newName);
-            printf("Movie name updated successfully.\n");
-            break;
-        case 2:
-            printf("Enter new movie time: ");
-            scanf("%s", newTime);
-            strcpy(movies[movieIndex].time, newTime);
-            printf("Movie time updated successfully.\n");
-            break;
-        case 3:
-            printf("Enter new movie price: ");
-            scanf("%f", &newPrice);
-            movies[movieIndex].price = newPrice;
-            printf("Movie price updated successfully.\n");
-            break;
-        default:
-            printf("Invalid choice.\n");
-            break;
+        if (movieIndex < 0 || movieIndex >= movieCount) {
+            printf("Invalid movie choice.\n");
+            continue;
+        }
+
+        switch (choice) {
+            case 1:
+                printf("Enter new movie name: ");
+                scanf(" %[^\n]s", newName);
+                strcpy(movies[movieIndex].name, newName);
+                printf("Movie name updated successfully.\n");
+                break;
+            case 2:
+                printf("Enter new movie time: ");
+                scanf("%s", newTime);
+                strcpy(movies[movieIndex].time, newTime);
+                printf("Movie time updated successfully.\n");
+                break;
+            case 3:
+                printf("Enter new movie price: ");
+                scanf("%f", &newPrice);
+                movies[movieIndex].price = newPrice;
+                printf("Movie price updated successfully.\n");
+                break;
+            default:
+                printf("Invalid choice.\n");
+                break;
+        }
     }
 }
 
-void viewBookedTickets(Movie movies[], int movieCount) {
+void viewBookedTickets(Movie movies[], User users[], int userCount, int movieCount) {
     for (int i = 0; i < movieCount; i++) {
-        printf("Movie: %s at %s (Hall %d)\n", movies[i].name, movies[i].time, movies[i].hallNumber);
+        printf("\nMovie: %s at %s (Hall %d)\n", movies[i].name, movies[i].time, movies[i].hallNumber);
         printf("Booked seats:\n");
         int booked = 0;
         for (int r = 0; r < ROWS; r++) {
             for (int c = 0; c < COLS; c++) {
                 if (movies[i].seats[r][c] == 1) {
-                    printf("(%d,%d) ", r + 1, c + 1);
-                    booked++;
+                    for (int u = 0; u < userCount; u++) {
+                        for (int t = 0; t < users[u].ticketCount; t++) {
+                            if (users[u].movieIndex == i && users[u].row[t] == r && users[u].col[t] == c) {
+                                printf("(%d,%d) - %s ", r + 1, c + 1, users[u].name);
+                                booked++;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -233,8 +245,11 @@ void chooseSeat(Movie movies[], User *user) {
     printf("Seats booked successfully.\n");
 }
 
-void purchaseTicket(Movie movies[], User *user, int movieCount) {
+void purchaseTicket(Movie movies[], User users[], int *userCount, int movieCount) {
     int movieChoice;
+    User newUser;
+    userDetails(&newUser);
+
     printf("Enter the movie number to purchase tickets: ");
     scanf("%d", &movieChoice);
     movieChoice--;
@@ -246,42 +261,60 @@ void purchaseTicket(Movie movies[], User *user, int movieCount) {
 
     printf("Purchasing ticket for %s at %s (Hall %d)\n", movies[movieChoice].name, movies[movieChoice].time, movies[movieChoice].hallNumber);
     printf("Enter the number of tickets to purchase: ");
-    scanf("%d", &user->ticketCount);
+    scanf("%d", &newUser.ticketCount);
 
-    if (user->ticketCount <= 0 || user->ticketCount > 10) {
+    if (newUser.ticketCount <= 0 || newUser.ticketCount > 10) {
         printf("Invalid number of tickets. You can purchase up to 10 tickets at a time.\n");
         return;
     }
 
-    user->movieIndex = movieChoice;
-    chooseSeat(movies, user);
+    newUser.movieIndex = movieChoice;
+    chooseSeat(movies, &newUser);
+
+    users[*userCount] = newUser;
+    (*userCount)++;
 
     printf("Tickets purchased successfully for %s at %s (Hall %d).\n", movies[movieChoice].name, movies[movieChoice].time, movies[movieChoice].hallNumber);
-    for (int i = 0; i < user->ticketCount; i++) {
-        printf("Seat %d: (%d, %d), Price: RS %.2f\n", i + 1, user->row[i] + 1, user->col[i] + 1, movies[movieChoice].price);
+    for (int i = 0; i < newUser.ticketCount; i++) {
+        printf("Seat %d: (%d, %d), Price: RS %.2f\n", i + 1, newUser.row[i] + 1, newUser.col[i] + 1, movies[movieChoice].price);
     }
 }
 
-void cancelSeat(Movie movies[], User *user) {
-    printf("Canceling seats...\n");
-    int movieChoice = user->movieIndex;
+void cancelSeat(Movie movies[], User users[], int *userCount) {
+    char name[MAX_NAME_LENGTH];
+    int movieChoice = -1;
+    int found = -1;
 
-    if (movieChoice < 0 || user->ticketCount == 0) {
-        printf("No booked seats to cancel.\n");
+    printf("Enter your name to cancel tickets: ");
+    scanf("%s", name);
+
+    for (int i = 0; i < *userCount; i++) {
+        if (strcmp(users[i].name, name) == 0) {
+            movieChoice = users[i].movieIndex;
+            found = i;
+            break;
+        }
+    }
+
+    if (movieChoice < 0 || found == -1) {
+        printf("No booked seats found for the given name.\n");
         return;
     }
 
-    for (int i = 0; i < user->ticketCount; i++) {
-        int row = user->row[i];
-        int col = user->col[i];
+    for (int i = 0; i < users[found].ticketCount; i++) {
+        int row = users[found].row[i];
+        int col = users[found].col[i];
         if (row >= 0 && col >= 0 && movies[movieChoice].seats[row][col] == 1) {
             movies[movieChoice].seats[row][col] = 0;
             printf("Seat (%d,%d) for movie %s at %s (Hall %d) has been canceled.\n", row + 1, col + 1, movies[movieChoice].name, movies[movieChoice].time, movies[movieChoice].hallNumber);
         }
     }
 
-    user->movieIndex = -1;
-    user->ticketCount = 0;
+    // Shift remaining users
+    for (int i = found; i < *userCount - 1; i++) {
+        users[i] = users[i + 1];
+    }
+    (*userCount)--;
 }
 
 void exitSystem() {
@@ -300,4 +333,3 @@ void userDetails(User *user) {
 
     printf("\nHello, %s! You are %d years old and your gender is %c.\n", user->name, user->age, user->gender);
 }
-
