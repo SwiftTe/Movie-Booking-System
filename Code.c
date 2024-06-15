@@ -121,6 +121,6 @@ void editPrice() {
 // Function to exit the system
 void exitSystem() {
     printf("\n\t\tSEE YOU SOON !!!...\n");
-    printf("done");
+    printf("donee");
 }
 
