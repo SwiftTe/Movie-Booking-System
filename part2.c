@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <conio.h>  // Include conio.h for getch() and _getch()
 
 #define MAX_MOVIES 6
 #define MAX_NAME_LENGTH 50
@@ -107,10 +108,27 @@ bool authenticateAdmin() {
     char username[20], password[20];
     printf("Enter admin username: ");
     scanf("%s", username);
-    printf("Enter admin password: ");
-    scanf("%s", password);
 
-    if (strcmp(username, "owner") == 0 && strcmp(password, "123456789") == 0) {
+    printf("Enter admin password: ");
+    int i = 0;
+    char c;
+    while (i < 19 && (c = getch()) != '\n') {
+        if (c == '\r') { // Handle Enter key press
+            printf("\n");
+            break; // Exit loop when Enter is pressed
+        } else if (c == 8) { // Handle backspace
+            if (i > 0) {
+                i--;
+                printf("\b \b"); // Erase the character from console
+            }
+        } else {
+            password[i++] = c;
+            printf("*"); // Print asterisk to mask the password
+        }
+    }
+    password[i] = '\0'; // Null terminate the password string
+
+    if (strcmp(username, "admin") == 0 && strcmp(password, "1234") == 0) {
         return true;
     } else {
         return false;
@@ -221,6 +239,7 @@ void chooseSeat(Movie movies[], User *user) {
                 printf("(%d,%d) ", r + 1, c + 1);
             } else {
                 printf("(X,X) ");  // Indicate booked seats with 'X'
+           
             }
         }
         printf("\n");
@@ -333,3 +352,4 @@ void userDetails(User *user) {
 
     printf("\nHello, %s! You are %d years old and your gender is %c.\n", user->name, user->age, user->gender);
 }
+
