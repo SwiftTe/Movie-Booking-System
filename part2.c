@@ -1,23 +1,54 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
-// Function prototypes
-void userDetails();
+#define MAX_MOVIES 6
+#define MAX_NAME_LENGTH 50
+#define ROWS 10
+#define COLS 10
+
+typedef struct {
+    char name[MAX_NAME_LENGTH];
+    char time[20];
+    int seats[ROWS][COLS];
+    float price;
+    int hallNumber;
+} Movie;
+
+typedef struct {
+    char name[MAX_NAME_LENGTH];
+    int age;
+    char gender;
+    int movieIndex;
+    int row[10];
+    int col[10];
+    int ticketCount;
+} User;
+
 void displayMenu();
-void editPrice();
-void viewBookedTickets();
-void showMovieAndTime(char movie[]);
-void chooseSeat();
-void purchaseTicket();
-void cancelSeat();
+void viewBookedTickets(Movie movies[], User users[], int userCount, int movieCount);
+void showMovies(Movie movies[], int movieCount);
+void chooseSeat(Movie movies[], User *user);
+void purchaseTicket(Movie movies[], User users[], int *userCount, int movieCount);
+void cancelSeat(Movie movies[], User users[], int *userCount);
 void exitSystem();
+void userDetails(User *user);
+void adminSection(Movie movies[], int movieCount);
+bool authenticateAdmin();
 
-// Global variables
-float ticketPrice = 100; // Default ticket price
-char movieName[20] = "KGF chapter 3 "; // Default movie name
+Movie movies[MAX_MOVIES] = {
+    {"Bahubali 3", "9:00 AM", {{0}}, 200, 1},
+    {"KGF Chapter 3", "12:00 PM", {{0}}, 150, 1},
+    {"RRR 2", "3:00 PM", {{0}}, 180, 1},
+    {"Spiderman", "9:00 AM", {{0}}, 250, 2},
+    {"Batman", "12:00 PM", {{0}}, 250, 2},
+    {"Moonknight", "3:00 PM", {{0}}, 250, 2}
+};
 
 int main() {
     int choice;
+    User users[100];
+    int userCount = 0;
 
     do {
         displayMenu();
@@ -26,24 +57,26 @@ int main() {
 
         switch (choice) {
             case 1:
-                editPrice();
+                if (authenticateAdmin()) {
+                    adminSection(movies, MAX_MOVIES);
+                } else {
+                    printf("Invalid credentials.\n");
+                }
                 break;
             case 2:
-                viewBookedTickets();
+                viewBookedTickets(movies, users, userCount, MAX_MOVIES);
                 break;
             case 3:
-                showMovieAndTime(movieName);
+                showMovies(movies, MAX_MOVIES);
                 break;
             case 4:
-                chooseSeat();
+                printf("You must purchase a ticket first.\n");
                 break;
             case 5:
-                purchaseTicket();
-                userDetails(); // Gather user details for purchase
+                purchaseTicket(movies, users, &userCount, MAX_MOVIES);
                 break;
             case 6:
-                cancelSeat();
-                userDetails(); // Gather user details for cancellation
+                cancelSeat(movies, users, &userCount);
                 break;
             case 7:
                 exitSystem();
@@ -56,14 +89,13 @@ int main() {
     return 0;
 }
 
-// Function to display the menu
 void displayMenu() {
     printf("\n              Simple Movie Booking System\n");
     printf(" ==================================================================\n");
     printf("||             Menu:                                              ||\n");
-    printf("||             1- Edit ticket price (admin)                       ||\n");
+    printf("||             1- Admin Section (admin)                           ||\n");
     printf("||             2- View booked tickets (admin)                     ||\n");
-    printf("||             3- Show movie and time                             ||\n");
+    printf("||             3- Show available movies                           ||\n");
     printf("||             4- Choose seat                                     ||\n");
     printf("||             5- Purchase ticket                                 ||\n");
     printf("||             6- Cancel the seat                                 ||\n");
@@ -71,64 +103,233 @@ void displayMenu() {
     printf("||================================================================||\n");
 }
 
-// Function to edit ticket price (admin only)
-void editPrice() {
+bool authenticateAdmin() {
+    char username[20], password[20];
+    printf("Enter admin username: ");
+    scanf("%s", username);
+    printf("Enter admin password: ");
+    scanf("%s", password);
+
+    if (strcmp(username, "owner") == 0 && strcmp(password, "123456789") == 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void adminSection(Movie movies[], int movieCount) {
+    int choice, movieIndex;
+    char newName[MAX_NAME_LENGTH], newTime[20];
     float newPrice;
-    printf("Enter the new ticket price: ");
-    scanf("%f", &newPrice);
-    ticketPrice = newPrice;
-    printf("Ticket price updated successfully!\n");
+    bool logout = false;
+
+    while (!logout) {
+        printf(" ==================================================================\n");
+        printf("||                     Admin Section                              ||\n");
+        printf("|| 1. Change movie name                                           ||\n");
+        printf("|| 2. Change movie time                                           ||\n");
+        printf("|| 3. Change movie price                                          ||\n");
+        printf("|| 4. Log out                                                     ||\n");
+        printf("||================================================================||\n");
+        printf("Enter your choice (1-4): ");
+        scanf("%d", &choice);
+
+        if (choice == 4) {
+            logout = true;
+            continue;
+        }
+
+        printf("Select Movie (1-%d): ", movieCount);
+        scanf("%d", &movieIndex);
+        movieIndex--;
+
+        if (movieIndex < 0 || movieIndex >= movieCount) {
+            printf("Invalid movie choice.\n");
+            continue;
+        }
+
+        switch (choice) {
+            case 1:
+                printf("Enter new movie name: ");
+                scanf(" %[^\n]s", newName);
+                strcpy(movies[movieIndex].name, newName);
+                printf("Movie name updated successfully.\n");
+                break;
+            case 2:
+                printf("Enter new movie time: ");
+                scanf("%s", newTime);
+                strcpy(movies[movieIndex].time, newTime);
+                printf("Movie time updated successfully.\n");
+                break;
+            case 3:
+                printf("Enter new movie price: ");
+                scanf("%f", &newPrice);
+                movies[movieIndex].price = newPrice;
+                printf("Movie price updated successfully.\n");
+                break;
+            default:
+                printf("Invalid choice.\n");
+                break;
+        }
+    }
 }
 
-// Function to view booked tickets (admin only)
-void viewBookedTickets() {
-    printf("Viewing booked tickets...\n");
-    // Implementation to view booked tickets
+void viewBookedTickets(Movie movies[], User users[], int userCount, int movieCount) {
+    for (int i = 0; i < movieCount; i++) {
+        printf("\nMovie: %s at %s (Hall %d)\n", movies[i].name, movies[i].time, movies[i].hallNumber);
+        printf("Booked seats:\n");
+        int booked = 0;
+        for (int r = 0; r < ROWS; r++) {
+            for (int c = 0; c < COLS; c++) {
+                if (movies[i].seats[r][c] == 1) {
+                    for (int u = 0; u < userCount; u++) {
+                        for (int t = 0; t < users[u].ticketCount; t++) {
+                            if (users[u].movieIndex == i && users[u].row[t] == r && users[u].col[t] == c) {
+                                printf("(%d,%d) - %s ", r + 1, c + 1, users[u].name);
+                                booked++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (booked == 0) {
+            printf("None");
+        }
+        printf("\n");
+    }
 }
 
-// Function to show movie and time
-void showMovieAndTime(char movie[]) {
-    printf("Showing movie: %s\n", movie);
-    // Implementation to show movie and time
+void showMovies(Movie movies[], int movieCount) {
+    printf("Available Movies:\n");
+    for (int i = 0; i < movieCount; i++) {
+        printf("+---------------------------------------------+\n");
+        printf("| %d. %-41s |\n", i + 1, movies[i].name);
+        printf("| Time: %-36s |\n", movies[i].time);
+        printf("| Hall: %-2d                               Price: RS %-6.2f |\n", movies[i].hallNumber, movies[i].price);
+        printf("+---------------------------------------------+\n");
+    }
 }
 
-// Function to choose seat
-void chooseSeat() {
-    printf("Choosing seat...\n");
-    // Implementation to choose seat
+void chooseSeat(Movie movies[], User *user) {
+    int movieIndex = user->movieIndex;
+    printf("Choosing seats for %s at %s (Hall %d)\n", movies[movieIndex].name, movies[movieIndex].time, movies[movieIndex].hallNumber);
+    printf("Available seats:\n");
+    for (int r = 0; r < ROWS; r++) {
+        for (int c = 0; c < COLS; c++) {
+            if (movies[movieIndex].seats[r][c] == 0) {
+                printf("(%d,%d) ", r + 1, c + 1);
+            } else {
+                printf("(X,X) ");  // Indicate booked seats with 'X'
+            }
+        }
+        printf("\n");
+    }
+    
+    for (int i = 0; i < user->ticketCount; i++) {
+        printf("Enter row number for ticket %d (1-10): ", i + 1);
+        scanf("%d", &user->row[i]);
+        printf("Enter column number for ticket %d (1-10): ", i + 1);
+        scanf("%d", &user->col[i]);
+        user->row[i]--;
+        user->col[i]--;
+        
+        if (user->row[i] < 0 || user->row[i] >= ROWS || user->col[i] < 0 || user->col[i] >= COLS || movies[movieIndex].seats[user->row[i]][user->col[i]] == 1) {
+            printf("Invalid or already booked seat for ticket %d. Please choose again.\n", i + 1);
+            i--;
+        } else {
+            movies[movieIndex].seats[user->row[i]][user->col[i]] = 1;
+        }
+    }
+
+    printf("Seats booked successfully.\n");
 }
 
-// Function to purchase ticket
-void purchaseTicket() {
-    printf("Purchasing ticket...\n");
-    // Implementation to purchase ticket
+void purchaseTicket(Movie movies[], User users[], int *userCount, int movieCount) {
+    int movieChoice;
+    User newUser;
+    userDetails(&newUser);
+
+    printf("Enter the movie number to purchase tickets: ");
+    scanf("%d", &movieChoice);
+    movieChoice--;
+
+    if (movieChoice < 0 || movieChoice >= movieCount) {
+        printf("Invalid movie choice.\n");
+        return;
+    }
+
+    printf("Purchasing ticket for %s at %s (Hall %d)\n", movies[movieChoice].name, movies[movieChoice].time, movies[movieChoice].hallNumber);
+    printf("Enter the number of tickets to purchase: ");
+    scanf("%d", &newUser.ticketCount);
+
+    if (newUser.ticketCount <= 0 || newUser.ticketCount > 10) {
+        printf("Invalid number of tickets. You can purchase up to 10 tickets at a time.\n");
+        return;
+    }
+
+    newUser.movieIndex = movieChoice;
+    chooseSeat(movies, &newUser);
+
+    users[*userCount] = newUser;
+    (*userCount)++;
+
+    printf("Tickets purchased successfully for %s at %s (Hall %d).\n", movies[movieChoice].name, movies[movieChoice].time, movies[movieChoice].hallNumber);
+    for (int i = 0; i < newUser.ticketCount; i++) {
+        printf("Seat %d: (%d, %d), Price: RS %.2f\n", i + 1, newUser.row[i] + 1, newUser.col[i] + 1, movies[movieChoice].price);
+    }
 }
 
-// Function to cancel seat
-void cancelSeat() {
-    printf("Canceling seat...\n");
-    // Implementation to cancel seat
-}
+void cancelSeat(Movie movies[], User users[], int *userCount) {
+    char name[MAX_NAME_LENGTH];
+    int movieChoice = -1;
+    int found = -1;
 
-// Function to gather user details
-void userDetails() {
-    char name[50];
-    int age;
-    char gender;
-
-    printf("Enter your name: ");
+    printf("Enter your name to cancel tickets: ");
     scanf("%s", name);
 
-    printf("Enter your age: ");
-    scanf("%d", &age);
+    for (int i = 0; i < *userCount; i++) {
+        if (strcmp(users[i].name, name) == 0) {
+            movieChoice = users[i].movieIndex;
+            found = i;
+            break;
+        }
+    }
 
-    printf("Enter your gender (M/F): ");
-    scanf(" %c", &gender);
+    if (movieChoice < 0 || found == -1) {
+        printf("No booked seats found for the given name.\n");
+        return;
+    }
 
-    printf("\nHello, %s! You are %d years old and your gender is %c.\n", name, age, gender);
+    for (int i = 0; i < users[found].ticketCount; i++) {
+        int row = users[found].row[i];
+        int col = users[found].col[i];
+        if (row >= 0 && col >= 0 && movies[movieChoice].seats[row][col] == 1) {
+            movies[movieChoice].seats[row][col] = 0;
+            printf("Seat (%d,%d) for movie %s at %s (Hall %d) has been canceled.\n", row + 1, col + 1, movies[movieChoice].name, movies[movieChoice].time, movies[movieChoice].hallNumber);
+        }
+    }
+
+    // Shift remaining users
+    for (int i = found; i < *userCount - 1; i++) {
+        users[i] = users[i + 1];
+    }
+    (*userCount)--;
 }
 
-// Function to exit the system
 void exitSystem() {
     printf("Exiting system...\n");
+}
+
+void userDetails(User *user) {
+    printf("Enter your name: ");
+    scanf("%s", user->name);
+
+    printf("Enter your age: ");
+    scanf("%d", &user->age);
+
+    printf("Enter your gender (M/F): ");
+    scanf(" %c", &user->gender);
+
+    printf("\nHello, %s! You are %d years old and your gender is %c.\n", user->name, user->age, user->gender);
 }
