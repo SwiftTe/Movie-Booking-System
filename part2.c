@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-#include <conio.h> // Required for _getch() function
+#include <conio.h>
+#include <time.h>
 
 #define MAX_MOVIES 6
 #define MAX_NAME_LENGTH 50
@@ -19,11 +20,12 @@ typedef struct {
 typedef struct {
     char name[MAX_NAME_LENGTH];
     int age;
-    char phone[11];  // 10 digits + null terminator
+    char phone[11];
     int movieIndex;
     int row[10];
     int col[10];
     int ticketCount;
+    char bookingDateTime[30];
 } User;
 
 void displayMenu();
@@ -41,7 +43,7 @@ void loadBookingsFromFile(User users[], int *userCount);
 char getRowLetter(int row);
 int getRowIndex(char letter);
 void printSeats(Movie movies[], int movieIndex);
-void maskPassword(char *password); // Function to mask password input
+void maskPassword(char *password);
 
 Movie movies[MAX_MOVIES] = {
     {"Bahubali 3", "9:00 AM", {{0}}, 200, 1},
@@ -119,7 +121,7 @@ bool authenticateAdmin() {
     scanf("%s", username);
 
     printf("Enter admin password: ");
-    maskPassword(password); // Mask password input
+    maskPassword(password);
     printf("\n");
 
     if (strcmp(username, "admin") == 0 && strcmp(password, "1234") == 0) {
@@ -133,14 +135,14 @@ void maskPassword(char *password) {
     int i = 0;
     while (1) {
         password[i] = _getch();
-        if (password[i] == '\r') { // Enter key pressed
-            password[i] = '\0'; // Null-terminate the string
+        if (password[i] == '\r') {
+            password[i] = '\0';
             break;
-        } else if (password[i] == 8 && i > 0) { // Backspace key pressed
-            printf("\b \b"); // Erase the character from console
+        } else if (password[i] == 8 && i > 0) {
+            printf("\b \b");
             i--;
         } else {
-            printf("*"); // Print asterisk for masking
+            printf("*");
             i++;
         }
     }
@@ -256,77 +258,110 @@ void chooseSeat(Movie movies[], User *user) {
     scanf("%d", &user->ticketCount);
 
     for (i = 0; i < user->ticketCount; i++) {
-        printf("Enter seat row (A-J) and column (1-10) (e.g., A1, B5): ");
+        printf("Enter seat %d (row letter and column number): ", i + 1);
         scanf(" %c%d", &rowLetter, &c);
         rowIndex = getRowIndex(rowLetter);
-        c--;
-
-        if (rowIndex >= 0 && rowIndex < ROWS && c >= 0 && c < COLS && movies[movieIndex].seats[rowIndex][c] == 0) {
-            movies[movieIndex].seats[rowIndex][c] = 1;
-            user->row[i] = rowIndex;
-            user->col[i] = c;
-        } else {
-            printf("Invalid or already booked seat. Please try again.\n");
+        if (rowIndex == -1 || c < 1 || c > COLS || movies[movieIndex].seats[rowIndex][c - 1] == 1) {
+            printf("Invalid seat or already booked. Please try again.\n");
             i--;
+        } else {
+            user->row[i] = rowIndex;
+            user->col[i] = c - 1;
+            movies[movieIndex].seats[rowIndex][c - 1] = 1;
         }
     }
 }
 
 void purchaseTicket(Movie movies[], User users[], int *userCount, int movieCount) {
-    User newUser;
-    userDetails(&newUser);
+    int movieIndex, i;
+    User user;
+    char confirmation;
 
     showMovies(movies, movieCount);
-    printf("Select a movie (1-%d): ", movieCount);
-    scanf("%d", &newUser.movieIndex);
-    newUser.movieIndex--;
 
-    if (newUser.movieIndex < 0 || newUser.movieIndex >= movieCount) {
-        printf("Invalid movie choice.\n");
+    printf("Select a movie (1-%d): ", movieCount);
+    scanf("%d", &movieIndex);
+    movieIndex--;
+
+    if (movieIndex < 0 || movieIndex >= movieCount) {
+        printf("Invalid movie selection.\n");
         return;
     }
 
-    chooseSeat(movies, &newUser);
+    userDetails(&user);
 
-    users[*userCount] = newUser;
-    (*userCount)++;
-    printf("Tickets booked successfully!\n");
+    user.movieIndex = movieIndex;
+
+    chooseSeat(movies, &user);
+
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+    snprintf(user.bookingDateTime, sizeof(user.bookingDateTime), "%02d-%02d-%04d %02d:%02d:%02d", 
+             tm.tm_mday, tm.tm_mon + 1, tm.tm_year + 1900, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    printf("\nPurchase Summary:\n");
+    printf("Name: %s\n", user.name);
+    printf("Age: %d\n", user.age);
+    printf("Phone: %s\n", user.phone);
+    printf("Movie: %s\n", movies[movieIndex].name);
+    printf("Time: %s\n", movies[movieIndex].time);
+    printf("Hall: %d\n", movies[movieIndex].hallNumber);
+    printf("Seats: ");
+    for (i = 0; i < user.ticketCount; i++) {
+        printf("%c%d ", getRowLetter(user.row[i]), user.col[i] + 1);
+    }
+    printf("\nTotal Price: $%.2f\n", user.ticketCount * movies[movieIndex].price);
+    printf("Booking Date and Time: %s\n", user.bookingDateTime);
+    printf("Confirm purchase (y/n): ");
+    scanf(" %c", &confirmation);
+
+    if (confirmation == 'y' || confirmation == 'Y') {
+        users[*userCount] = user;
+        (*userCount)++;
+        printf("Purchase successful! Enjoy your movie.\n");
+    } else {
+        printf("Purchase canceled.\n");
+    }
 }
 
 void cancelSeat(Movie movies[], User users[], int *userCount) {
-    char name[MAX_NAME_LENGTH];
     char phone[11];
-    int movieIndex, i, j;
+    int movieIndex, row, col, i, j, k;
+    bool found = false;
 
-    printf("Enter the name for ticket cancellation: ");
-    scanf(" %[^\n]s", name);
-    printf("Enter the phone number for ticket cancellation: ");
+    printf("Enter your phone number to cancel seats: ");
     scanf("%s", phone);
 
     for (i = 0; i < *userCount; i++) {
-        if (strcmp(users[i].name, name) == 0 && strcmp(users[i].phone, phone) == 0) {
+        if (strcmp(users[i].phone, phone) == 0) {
             movieIndex = users[i].movieIndex;
+            printf("Seats booked for %s (Movie: %s):\n", users[i].name, movies[movieIndex].name);
             for (j = 0; j < users[i].ticketCount; j++) {
-                int r = users[i].row[j];
-                int c = users[i].col[j];
-                movies[movieIndex].seats[r][c] = 0;
+                printf("%c%d ", getRowLetter(users[i].row[j]), users[i].col[j] + 1);
             }
-
-            for (j = i; j < *userCount - 1; j++) {
-                users[j] = users[j + 1];
+            printf("\n");
+            for (j = 0; j < users[i].ticketCount; j++) {
+                row = users[i].row[j];
+                col = users[i].col[j];
+                movies[movieIndex].seats[row][col] = 0;
             }
-
+            for (k = i; k < (*userCount) - 1; k++) {
+                users[k] = users[k + 1];
+            }
             (*userCount)--;
-            printf("Tickets cancelled successfully!\n");
-            return;
+            found = true;
+            printf("Your booking has been canceled successfully.\n");
+            break;
         }
     }
 
-    printf("No booking found under this name and phone number.\n");
+    if (!found) {
+        printf("No booking found for the provided phone number.\n");
+    }
 }
 
 void exitSystem() {
-    printf("Exiting system...\n");
+    printf("Thank you for using the Simple Movie Booking System. Goodbye!\n");
 }
 
 void userDetails(User *user) {
@@ -340,50 +375,43 @@ void userDetails(User *user) {
 
 void saveBookingsToFile(User users[], int userCount) {
     FILE *file = fopen("bookings.txt", "w");
+    int i, j;
+
     if (file == NULL) {
-        printf("Error opening file for writing.\n");
+        printf("Unable to open file for saving bookings.\n");
         return;
     }
-    fprintf(file, "UserCount: %d\n", userCount);
-    int i, j;
+
     for (i = 0; i < userCount; i++) {
-        fprintf(file, "Name: %s\n", users[i].name);
-        fprintf(file, "Age: %d\n", users[i].age);
-        fprintf(file, "Phone: %s\n", users[i].phone);
-        fprintf(file, "MovieIndex: %d\n", users[i].movieIndex);
-        fprintf(file, "TicketCount: %d\n", users[i].ticketCount);
+        fprintf(file, "%s %d %s %d %d", users[i].name, users[i].age, users[i].phone, users[i].movieIndex, users[i].ticketCount);
         for (j = 0; j < users[i].ticketCount; j++) {
-            fprintf(file, "Seat: %c%d\n", getRowLetter(users[i].row[j]), users[i].col[j] + 1);
+            fprintf(file, " %d %d", users[i].row[j], users[i].col[j]);
         }
+        fprintf(file, " %s\n", users[i].bookingDateTime);
     }
+
     fclose(file);
-    printf("Bookings saved to file.\n");
 }
 
 void loadBookingsFromFile(User users[], int *userCount) {
     FILE *file = fopen("bookings.txt", "r");
+    int i, j;
+
     if (file == NULL) {
         printf("No previous bookings found.\n");
         return;
     }
-    fscanf(file, "UserCount: %d\n", userCount);
-    int i, j;
-    char rowLetter;
-    for (i = 0; i < *userCount; i++) {
-        fscanf(file, "Name: %[^\n]s\n", users[i].name);
-        fscanf(file, "Age: %d\n", &users[i].age);
-        fscanf(file, "Phone: %s\n", users[i].phone);
-        fscanf(file, "MovieIndex: %d\n", &users[i].movieIndex);
-        fscanf(file, "TicketCount: %d\n", &users[i].ticketCount);
-        for (j = 0; j < users[i].ticketCount; j++) {
-            fscanf(file, "Seat: %c%d\n", &rowLetter, &users[i].col[j]);
-            users[i].row[j] = getRowIndex(rowLetter);
-            users[i].col[j]--;
-            movies[users[i].movieIndex].seats[users[i].row[j]][users[i].col[j]] = 1;
+
+    while (fscanf(file, "%s %d %s %d %d", users[*userCount].name, &users[*userCount].age, users[*userCount].phone, 
+                  &users[*userCount].movieIndex, &users[*userCount].ticketCount) != EOF) {
+        for (j = 0; j < users[*userCount].ticketCount; j++) {
+            fscanf(file, "%d %d", &users[*userCount].row[j], &users[*userCount].col[j]);
         }
+        fscanf(file, " %[^\n]s", users[*userCount].bookingDateTime);
+        (*userCount)++;
     }
+
     fclose(file);
-    printf("Bookings loaded from file.\n");
 }
 
 char getRowLetter(int row) {
@@ -396,15 +424,14 @@ int getRowIndex(char letter) {
 
 void printSeats(Movie movies[], int movieIndex) {
     int r, c;
-    printf("Seats for movie: %s at %s (Hall %d)\n", movies[movieIndex].name, movies[movieIndex].time, movies[movieIndex].hallNumber);
-    printf("  1 2 3 4 5 6 7 8 9 10\n");
+    printf("Available seats (0: available, 1: booked):\n");
     for (r = 0; r < ROWS; r++) {
-        printf("%c ", getRowLetter(r));
         for (c = 0; c < COLS; c++) {
-            if (movies[movieIndex].seats[r][c] == 0) {1
-                printf("O ");
+            if (c == 5) printf(" ");
+            if (movies[movieIndex].seats[r][c] == 0) {
+                printf("%c%d ", getRowLetter(r), c + 1);
             } else {
-                printf("X ");
+                printf("XX ");
             }
         }
         printf("\n");
