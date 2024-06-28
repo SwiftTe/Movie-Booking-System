@@ -4,6 +4,36 @@ void userDetails() {
     char name;
     int age;
     char gender;
+    #include <stdio.h>
+
+void userDetails() {
+    char name[50];
+    int age;
+    char gender[2];
+    char phone[15];
+
+    printf("Enter your name: ");
+    scanf("%s", name);
+
+    printf("Enter your age: ");
+    scanf("%d", &age);
+
+    printf("Enter your gender (M/F): ");
+    scanf(" %s", gender);
+
+    printf("Enter your phone number: ");
+    scanf("%s", phone);
+
+    printf("\nHello, %s! You are %d years old, your gender is %s, and your phone number is %s.\n", name, age, gender, phone);
+}
+
+int main() {
+    int choice;
+
+    printf("                                                           Simple Movie Booking System                    \n");
+    printf("============================================================================================================================================================\n");
+    printf
+
 
     printf("Enter your name: ");
     scanf(" %c", &name);
