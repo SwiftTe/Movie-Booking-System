@@ -124,6 +124,7 @@ void displayMenu() {
     printf("||             7- Exit system                                     ||\n");
     printf("||             8- Generate report                                 ||\n");
     printf("||================================================================||\n");
+    printf("||                    Wel-come                                    ||\n");
 }
 
 bool authenticateAdmin() {
