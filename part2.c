@@ -121,7 +121,6 @@ void displayMenu() {
     printf("||             7- Exit system                                     ||\n");
     printf("||             8- Generate report                                 ||\n");
     printf("||================================================================||\n");
-    printf("||                    Wel-come                                    ||\n");
 }
 
 bool authenticateAdmin() {
@@ -476,7 +475,5 @@ void generateReport(User *users, int userCount) {
     fprintf(file, "Total Sales: Rs %.2f\n", totalSales);
     fclose(file);
     printf("Sales report generated successfully in report.txt.\n");
-
-
-
+}
 
