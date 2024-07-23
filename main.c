@@ -101,6 +101,7 @@ void displayMenu() {
     printf("||             6- Cancel the seat                                 ||\n");
     printf("||             7- Exit system                                     ||\n");
     printf("||================================================================||\n");
+    printf("||                    Wel-come                                    ||\n");
 }
 
 bool authenticateAdmin() {
