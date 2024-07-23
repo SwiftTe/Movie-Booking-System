@@ -476,5 +476,7 @@ void generateReport(User *users, int userCount) {
     fprintf(file, "Total Sales: Rs %.2f\n", totalSales);
     fclose(file);
     printf("Sales report generated successfully in report.txt.\n");
-}
+
+
+
 
